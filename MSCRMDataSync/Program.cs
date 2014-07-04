@@ -17,6 +17,7 @@ namespace MSCRMDataSync
     class Program
     {
         private static string logfilename;
+        private static int batchSize = 10;
 
         static void Main(string[] args)
         {
@@ -35,6 +36,7 @@ namespace MSCRMDataSync
                 var sourceNode = config.SelectSingleNode("//mscrmdatasync/source");
                 var destNode = config.SelectSingleNode("//mscrmdatasync/destination");
                 var queryNode = config.SelectSingleNode("//mscrmdatasync/query");
+                var batchsizeNode = config.SelectSingleNode("//mscrmdatasync/batchsize");
 
                 var sourceType = sourceNode.Attributes["type"].Value;
                 var sourceConnectionstring = sourceNode.InnerText;
@@ -43,6 +45,8 @@ namespace MSCRMDataSync
                 var destConnectionstring = destNode.InnerText;
 
                 var queryXml = queryNode.InnerText;
+
+                batchSize = int.Parse(batchsizeNode.InnerText);
 
                 Entity[] sourceData = null;
 
@@ -100,7 +104,7 @@ namespace MSCRMDataSync
         {
             var connection = CrmConnection.Parse(connectionstring);
             var service = new OrganizationService(connection);
-            var batchSize = 10;
+            //var batchSize = 10;
             var batchNo = 1;
             var currentIndex = 0;
             var moreBatches = true;

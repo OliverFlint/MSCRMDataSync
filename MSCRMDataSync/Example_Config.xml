@@ -21,4 +21,5 @@
   </entity>
 </fetch>
   ]]></query>
+  <batchsize>10</batchsize>
 </mscrmdatasync>
