@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<mscrmdatasync>
+  <source type="file">output.data</source>
+  <destination type="server">Url=http://localhost/Vanilla; Domain=NINE; Username=Administrator; Password=Password1;</destination>
+  <query>
+    <![CDATA[
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false">
+  <entity name="contact">
+    <attribute name="fullname" />
+    <attribute name="parentcustomerid" />
+    <attribute name="telephone1" />
+    <attribute name="emailaddress1" />
+    <attribute name="contactid" />
+    <attribute name="lastname" />
+    <attribute name="firstname" />
+    <order attribute="fullname" descending="false" />
+    <filter type="and">
+      <condition attribute="ownerid" operator="eq-userid" />
+      <condition attribute="statecode" operator="eq" value="0" />
+    </filter>
+  </entity>
+</fetch>
+  ]]></query>
+</mscrmdatasync>
