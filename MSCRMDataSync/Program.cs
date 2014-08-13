@@ -1,4 +1,5 @@
-﻿using Microsoft.Xrm.Client;
+﻿using Microsoft.Crm.Sdk.Messages;
+using Microsoft.Xrm.Client;
 using Microsoft.Xrm.Client.Services;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
@@ -84,9 +85,28 @@ namespace MSCRMDataSync
             var connection = CrmConnection.Parse(connectionstring);
             var service = new OrganizationService(connection);
 
-            var query = new FetchExpression(queryxml);
-            var results = service.RetrieveMultiple(query);
-            return results.Entities.ToArray();
+            var resp = (FetchXmlToQueryExpressionResponse)service.Execute(new FetchXmlToQueryExpressionRequest() { FetchXml=queryxml });
+            var query = resp.Query;
+            int page = 1;
+
+            var results = ExecutePagedQuery(connectionstring, query, page);
+            var resultList = results.Entities.ToList();
+            while (results.MoreRecords)
+            {
+                page++;
+                results = ExecutePagedQuery(connectionstring, query, page);
+                resultList.AddRange(results.Entities.ToList());
+            }
+
+            return resultList.ToArray();
+        }
+
+        private static EntityCollection ExecutePagedQuery(string connectionstring, QueryExpression query, int page)
+        {
+            var connection = CrmConnection.Parse(connectionstring);
+            var service = new OrganizationService(connection);
+            query.PageInfo = new PagingInfo() { Count=1000, PageNumber=page };
+            return service.RetrieveMultiple(query);
         }
 
         private static Entity[] GetEntitiesFromFile(string filename)
@@ -101,6 +121,47 @@ namespace MSCRMDataSync
         }
 
         private static void SaveToServer(Entity[] entities, string connectionstring)
+        {
+            if (batchSize > 1)
+            {
+                SaveToServerBatched(entities, connectionstring);
+            }
+            else
+            {
+                SaveToServerSingle(entities, connectionstring);
+            }
+        }
+
+        private static void SaveToServerSingle(Entity[] entities, string connectionstring)
+        {
+            var connection = CrmConnection.Parse(connectionstring);
+            var service = new OrganizationService(connection);
+
+            foreach (var e in entities)
+            {
+                var exists = false;
+                try
+                {
+                    var existingEntity = service.Retrieve(e.LogicalName, e.Id, new ColumnSet());
+                    if (existingEntity != null)
+                    {
+                        exists = true;
+                    }
+                }
+                catch { }
+
+                if (exists)
+                {
+                    service.Update(e);
+                }
+                else
+                {
+                    service.Create(e);
+                }
+            }
+        }
+
+        private static void SaveToServerBatched(Entity[] entities, string connectionstring)
         {
             var connection = CrmConnection.Parse(connectionstring);
             var service = new OrganizationService(connection);

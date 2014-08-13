@@ -1,7 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <mscrmdatasync>
-  <source type="file">output.data</source>
-  <destination type="server">Url=http://localhost/Vanilla; Domain=NINE; Username=Administrator; Password=Password1;</destination>
+  <!--<source type="file">output.data</source>-->
+  <source type="server">Url=http://localhost/Vanilla; Domain=NINE; Username=Administrator; Password=Password1;</source>
+  <!--<destination type="server">Url=http://localhost/Vanilla; Domain=NINE; Username=Administrator; Password=Password1;</destination>-->
+  <destination type="file">output.data</destination>
   <query>
     <![CDATA[
 <fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false">
