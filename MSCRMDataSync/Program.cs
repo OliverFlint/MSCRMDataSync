@@ -3,6 +3,7 @@ using Microsoft.Xrm.Client;
 using Microsoft.Xrm.Client.Services;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
+using Microsoft.Xrm.Sdk.Metadata;
 using Microsoft.Xrm.Sdk.Query;
 using System;
 using System.Collections.Generic;
@@ -38,12 +39,15 @@ namespace MSCRMDataSync
                 var destNode = config.SelectSingleNode("//mscrmdatasync/destination");
                 var queryNode = config.SelectSingleNode("//mscrmdatasync/query");
                 var batchsizeNode = config.SelectSingleNode("//mscrmdatasync/batchsize");
+                var syncTypeNode = config.SelectSingleNode("//mscrmdatasync/type");
 
                 var sourceType = sourceNode.Attributes["type"].Value;
                 var sourceConnectionstring = sourceNode.InnerText;
 
                 var destType = destNode.Attributes["type"].Value;
                 var destConnectionstring = destNode.InnerText;
+
+                var syncType = syncTypeNode != null ? syncTypeNode.InnerText : String.Empty;
 
                 var queryXml = queryNode.InnerText;
 
@@ -62,7 +66,14 @@ namespace MSCRMDataSync
 
                 if (destType.ToLower() == "server")
                 {
-                    SaveToServer(sourceData, destConnectionstring);
+                    if (syncType.ToLower() == "manytomany")
+                    {
+                        SaveN2NToServerSingle(sourceData, destConnectionstring);
+                    }
+                    else
+                    {
+                        SaveToServer(sourceData, destConnectionstring);
+                    }
                 }
                 else
                 {
@@ -157,6 +168,41 @@ namespace MSCRMDataSync
                 else
                 {
                     service.Create(e);
+                }
+            }
+        }
+
+        private static void SaveN2NToServerSingle(Entity[] entities, string connectionstring)
+        {
+            var connection = CrmConnection.Parse(connectionstring);
+            var service = new OrganizationService(connection);
+
+            var req = new RetrieveRelationshipRequest();
+            req.Name = entities[0].LogicalName;
+            var metadata = service.Execute<RetrieveRelationshipResponse>(req);
+            var relationship = (ManyToManyRelationshipMetadata)metadata.RelationshipMetadata;
+
+            foreach (var e in entities)
+            {
+                var exists = false;
+                try
+                {
+                    var existingEntity = service.Retrieve(e.LogicalName, e.Id, new ColumnSet());
+                    if (existingEntity != null)
+                    {
+                        exists = true;
+                    }
+                }
+                catch { }
+
+                if (!exists)
+                {
+                    var rc = new EntityReferenceCollection();
+                    rc.Add(new EntityReference(relationship.Entity2LogicalName, e.GetAttributeValue<Guid>(relationship.Entity2IntersectAttribute)));
+                    service.Associate(relationship.Entity1LogicalName
+                        , e.GetAttributeValue<Guid>(relationship.Entity1IntersectAttribute)
+                        , new Relationship(relationship.SchemaName)
+                        , rc);
                 }
             }
         }
