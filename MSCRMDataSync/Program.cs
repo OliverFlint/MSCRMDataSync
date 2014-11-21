@@ -105,18 +105,19 @@ namespace MSCRMDataSync
             while (results.MoreRecords)
             {
                 page++;
-                results = ExecutePagedQuery(connectionstring, query, page);
+                results = ExecutePagedQuery(connectionstring, query, page, results.PagingCookie);
                 resultList.AddRange(results.Entities.ToList());
             }
 
             return resultList.ToArray();
         }
 
-        private static EntityCollection ExecutePagedQuery(string connectionstring, QueryExpression query, int page)
+        private static EntityCollection ExecutePagedQuery(string connectionstring, QueryExpression query, int page, string pagingCookie = null)
         {
             var connection = CrmConnection.Parse(connectionstring);
             var service = new OrganizationService(connection);
             query.PageInfo = new PagingInfo() { Count=1000, PageNumber=page };
+            if (pagingCookie != null) query.PageInfo.PagingCookie = pagingCookie;
             return service.RetrieveMultiple(query);
         }
 
@@ -286,7 +287,17 @@ namespace MSCRMDataSync
                     createIndex++;
                 }
 
-                service.Execute(createReq);
+                var createResp = (ExecuteMultipleResponse)service.Execute(createReq);
+
+                if(createResp.IsFaulted){
+                    foreach (var s in createResp.Responses)
+                    {
+                        if (s.Fault != null)
+                        {
+                            logerror(s.Fault.Message);
+                        }
+                    }
+                }
 
                 if (createIndex >= createEntities.Count)
                 {
