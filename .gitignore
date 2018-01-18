@@ -3,3 +3,10 @@
 ################################################################################
 
 /MSCRMDataSyncTests/Test1.xml
+/MSCRMDataSyncTests/bin/Debug
+/MSCRMDataSyncTests/obj
+/packages
+/.vs
+/MSCRMDataSync/bin/Debug
+/MSCRMDataSync/obj
+*.user

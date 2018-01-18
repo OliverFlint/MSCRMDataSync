@@ -1,6 +1,4 @@
 ﻿using Microsoft.Crm.Sdk.Messages;
-using Microsoft.Xrm.Client;
-using Microsoft.Xrm.Client.Services;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Metadata;
@@ -16,12 +14,12 @@ using System.Xml;
 
 namespace MSCRMDataSync
 {
-    class Program
+    public class Program
     {
         private static string logfilename;
         private static int batchSize = 10;
 
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
             try
             {
@@ -79,7 +77,7 @@ namespace MSCRMDataSync
                 {
                     SaveToFile(sourceData, destConnectionstring);
                 }
-
+                logsuccess("Job completed successfully");
             }
             catch (Exception ex)
             {
@@ -93,29 +91,26 @@ namespace MSCRMDataSync
 
         private static Entity[] GetEntitiesFromServer(string connectionstring, string queryxml)
         {
-            var connection = CrmConnection.Parse(connectionstring);
-            var service = new OrganizationService(connection);
+            var service = new Microsoft.Xrm.Tooling.Connector.CrmServiceClient(connectionstring);
 
             var resp = (FetchXmlToQueryExpressionResponse)service.Execute(new FetchXmlToQueryExpressionRequest() { FetchXml=queryxml });
             var query = resp.Query;
             int page = 1;
 
-            var results = ExecutePagedQuery(connectionstring, query, page);
+            var results = ExecutePagedQuery(service, query, page);
             var resultList = results.Entities.ToList();
             while (results.MoreRecords)
             {
                 page++;
-                results = ExecutePagedQuery(connectionstring, query, page, results.PagingCookie);
+                results = ExecutePagedQuery(service, query, page, results.PagingCookie);
                 resultList.AddRange(results.Entities.ToList());
             }
 
             return resultList.ToArray();
         }
 
-        private static EntityCollection ExecutePagedQuery(string connectionstring, QueryExpression query, int page, string pagingCookie = null)
+        private static EntityCollection ExecutePagedQuery(Microsoft.Xrm.Tooling.Connector.CrmServiceClient service, QueryExpression query, int page, string pagingCookie = null)
         {
-            var connection = CrmConnection.Parse(connectionstring);
-            var service = new OrganizationService(connection);
             query.PageInfo = new PagingInfo() { Count=1000, PageNumber=page };
             if (pagingCookie != null) query.PageInfo.PagingCookie = pagingCookie;
             return service.RetrieveMultiple(query);
@@ -146,8 +141,7 @@ namespace MSCRMDataSync
 
         private static void SaveToServerSingle(Entity[] entities, string connectionstring)
         {
-            var connection = CrmConnection.Parse(connectionstring);
-            var service = new OrganizationService(connection);
+            var service = new Microsoft.Xrm.Tooling.Connector.CrmServiceClient(connectionstring);
 
             foreach (var e in entities)
             {
@@ -175,12 +169,13 @@ namespace MSCRMDataSync
 
         private static void SaveN2NToServerSingle(Entity[] entities, string connectionstring)
         {
-            var connection = CrmConnection.Parse(connectionstring);
-            var service = new OrganizationService(connection);
+            var service = new Microsoft.Xrm.Tooling.Connector.CrmServiceClient(connectionstring);
 
-            var req = new RetrieveRelationshipRequest();
-            req.Name = entities[0].LogicalName;
-            var metadata = service.Execute<RetrieveRelationshipResponse>(req);
+            var req = new RetrieveRelationshipRequest
+            {
+                Name = entities[0].LogicalName
+            };
+            var metadata = (RetrieveRelationshipResponse)service.Execute(req);
             var relationship = (ManyToManyRelationshipMetadata)metadata.RelationshipMetadata;
 
             foreach (var e in entities)
@@ -210,8 +205,8 @@ namespace MSCRMDataSync
 
         private static void SaveToServerBatched(Entity[] entities, string connectionstring)
         {
-            var connection = CrmConnection.Parse(connectionstring);
-            var service = new OrganizationService(connection);
+            var service = new Microsoft.Xrm.Tooling.Connector.CrmServiceClient(connectionstring);
+
             //var batchSize = 10;
             var batchNo = 1;
             var currentIndex = 0;
@@ -222,19 +217,23 @@ namespace MSCRMDataSync
 
             while (moreBatches)
             {
-                var existsReq = new ExecuteMultipleRequest();
-                existsReq.Requests = new OrganizationRequestCollection();
-                existsReq.Settings = new ExecuteMultipleSettings()
+                var existsReq = new ExecuteMultipleRequest
                 {
-                    ContinueOnError=true,
-                    ReturnResponses=true
+                    Requests = new OrganizationRequestCollection(),
+                    Settings = new ExecuteMultipleSettings()
+                    {
+                        ContinueOnError = true,
+                        ReturnResponses = true
+                    }
                 };
 
                 while ((batchNo * batchSize) > currentIndex && currentIndex < entities.Length)
                 {
-                    var req = new RetrieveRequest();
-                    req.ColumnSet = new ColumnSet();
-                    req.Target = new EntityReference(entities[currentIndex].LogicalName, entities[currentIndex].Id);
+                    var req = new RetrieveRequest
+                    {
+                        ColumnSet = new ColumnSet(),
+                        Target = new EntityReference(entities[currentIndex].LogicalName, entities[currentIndex].Id)
+                    };
                     existsReq.Requests.Add(req);
                     currentIndex++;
                 }
@@ -271,18 +270,22 @@ namespace MSCRMDataSync
             moreBatches = true;
             while (moreBatches)
             {
-                var createReq = new ExecuteMultipleRequest();
-                createReq.Requests = new OrganizationRequestCollection();
-                createReq.Settings = new ExecuteMultipleSettings()
+                var createReq = new ExecuteMultipleRequest
                 {
-                    ContinueOnError = true,
-                    ReturnResponses = false
+                    Requests = new OrganizationRequestCollection(),
+                    Settings = new ExecuteMultipleSettings()
+                    {
+                        ContinueOnError = true,
+                        ReturnResponses = false
+                    }
                 };
 
                 while ((createBatchNo * batchSize) > createIndex && createIndex < createEntities.Count)
                 {
-                    var req = new CreateRequest();
-                    req.Target = createEntities[createIndex];
+                    var req = new CreateRequest
+                    {
+                        Target = createEntities[createIndex]
+                    };
                     createReq.Requests.Add(req);
                     createIndex++;
                 }
@@ -316,18 +319,22 @@ namespace MSCRMDataSync
             moreBatches = true;
             while (moreBatches)
             {
-                var updateReq = new ExecuteMultipleRequest();
-                updateReq.Requests = new OrganizationRequestCollection();
-                updateReq.Settings = new ExecuteMultipleSettings()
+                var updateReq = new ExecuteMultipleRequest
                 {
-                    ContinueOnError = true,
-                    ReturnResponses = false
+                    Requests = new OrganizationRequestCollection(),
+                    Settings = new ExecuteMultipleSettings()
+                    {
+                        ContinueOnError = true,
+                        ReturnResponses = false
+                    }
                 };
 
                 while ((updateBatchNo * batchSize) > updateIndex && updateIndex < updatedEntities.Count)
                 {
-                    var req = new UpdateRequest();
-                    req.Target = updatedEntities[updateIndex];
+                    var req = new UpdateRequest
+                    {
+                        Target = updatedEntities[updateIndex]
+                    };
                     updateReq.Requests.Add(req);
                     updateIndex++;
                 }

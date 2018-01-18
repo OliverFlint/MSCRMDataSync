@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="config">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="jobs" maxOccurs="1" minOccurs="1">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element maxOccurs="unbounded" name="job">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="source" maxOccurs="1" minOccurs="1">
+                      <xs:complexType>
+                        <xs:attribute name="type" type="type" use="required" />
+                        <xs:attribute name="value" type="xs:string" use="required" />
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="destination" maxOccurs="1" minOccurs="1">
+                      <xs:complexType>
+                        <xs:attribute name="type" type="type" use="required" />
+                        <xs:attribute name="value" type="xs:string" use="required" />
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="fetchxml" type="xs:string" maxOccurs="1" minOccurs="1" />
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:simpleType name="type">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="file" />
+      <xs:enumeration value="d365" />
+    </xs:restriction>
+  </xs:simpleType>
+</xs:schema>

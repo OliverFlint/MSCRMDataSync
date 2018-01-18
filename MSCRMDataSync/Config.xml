@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<config>
+  <jobs>
+    <job>
+      <source type="" value="" />
+      <destination type="" value="" />
+      <fetchxml><![CDATA[]]></fetchxml>
+    </job>
+    <job>
+      <source type="" value="" />
+      <destination type="" value="" />
+      <fetchxml><![CDATA[]]></fetchxml>
+    </job>
+  </jobs>
+</config>
