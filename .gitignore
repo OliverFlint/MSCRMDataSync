@@ -2,7 +2,7 @@
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
 
-/MSCRMDataSyncTests/Test1.xml
+/MSCRMDataSyncTests/Test*.xml
 /MSCRMDataSyncTests/bin/Debug
 /MSCRMDataSyncTests/obj
 /packages

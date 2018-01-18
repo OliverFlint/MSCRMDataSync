@@ -11,5 +11,17 @@ namespace MSCRMDataSyncTests
         {
             MSCRMDataSync.Program.Main(new string[] { "Test1.xml" });
         }
+
+        [TestMethod]
+        public void TestMethod2()
+        {
+            MSCRMDataSync.Program.Main(new string[] { "Test2.xml" });
+        }
+
+        [TestMethod]
+        public void TestMethod3()
+        {
+            MSCRMDataSync.Program.Main(new string[] { "Test3.xml" });
+        }
     }
 }

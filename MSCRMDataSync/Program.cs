@@ -145,25 +145,13 @@ namespace MSCRMDataSync
 
             foreach (var e in entities)
             {
-                var exists = false;
-                try
+                var upsert = new UpsertRequest()
                 {
-                    var existingEntity = service.Retrieve(e.LogicalName, e.Id, new ColumnSet());
-                    if (existingEntity != null)
-                    {
-                        exists = true;
-                    }
-                }
-                catch { }
-
-                if (exists)
-                {
-                    service.Update(e);
-                }
-                else
-                {
-                    service.Create(e);
-                }
+                    Target = e
+                };
+                var resp = (UpsertResponse)service.Execute(upsert);
+                var created = resp.RecordCreated ? "created" : "updated";
+                log($"Record {created}");
             }
         }
 
@@ -207,149 +195,31 @@ namespace MSCRMDataSync
         {
             var service = new Microsoft.Xrm.Tooling.Connector.CrmServiceClient(connectionstring);
 
-            //var batchSize = 10;
-            var batchNo = 1;
-            var currentIndex = 0;
-            var moreBatches = true;
+            var _entities = entities.ToList();
 
-            var updatedEntities = new List<Entity>();
-            var createEntities = entities.ToList();
-
-            while (moreBatches)
+            while(_entities.Any())
             {
-                var existsReq = new ExecuteMultipleRequest
+                var batch = _entities.Take(batchSize);
+                batch.ToList().ForEach(b => _entities.Remove(b));
+
+                var upserts = batch.Select(e => new UpsertRequest() { Target = e });
+
+                var req = new ExecuteMultipleRequest()
                 {
-                    Requests = new OrganizationRequestCollection(),
                     Settings = new ExecuteMultipleSettings()
                     {
                         ContinueOnError = true,
                         ReturnResponses = true
-                    }
+                    },
+                    Requests = new OrganizationRequestCollection()
                 };
+                req.Requests.AddRange(upserts);
 
-                while ((batchNo * batchSize) > currentIndex && currentIndex < entities.Length)
-                {
-                    var req = new RetrieveRequest
-                    {
-                        ColumnSet = new ColumnSet(),
-                        Target = new EntityReference(entities[currentIndex].LogicalName, entities[currentIndex].Id)
-                    };
-                    existsReq.Requests.Add(req);
-                    currentIndex++;
-                }
+                var resp = (ExecuteMultipleResponse)service.Execute(req);
 
-                var existsResp = (ExecuteMultipleResponse)service.Execute(existsReq);
+                var faults = resp.Responses.Where(r => r.Fault != null);
 
-                //Add updated entities to the updatedEntities collection
-                foreach (var item in existsResp.Responses)
-                {
-                    if (item.Response != null)
-                    {
-                        var updatedentity = entities.First(e => e.Id == ((Entity)item.Response.Results.FirstOrDefault().Value).Id);
-                        updatedEntities.Add(updatedentity);
-
-                        //Remove the entity form the createdEntities collection
-                        createEntities.Remove(updatedentity);
-                    }
-                }
-
-                if (currentIndex >= entities.Length)
-                {
-                    moreBatches = false;
-                }
-                else
-                {
-                    moreBatches = true;
-                    batchNo++;
-                }
-            }
-            
-            //Create entities
-            var createIndex = 0;
-            var createBatchNo = 1;
-            moreBatches = true;
-            while (moreBatches)
-            {
-                var createReq = new ExecuteMultipleRequest
-                {
-                    Requests = new OrganizationRequestCollection(),
-                    Settings = new ExecuteMultipleSettings()
-                    {
-                        ContinueOnError = true,
-                        ReturnResponses = false
-                    }
-                };
-
-                while ((createBatchNo * batchSize) > createIndex && createIndex < createEntities.Count)
-                {
-                    var req = new CreateRequest
-                    {
-                        Target = createEntities[createIndex]
-                    };
-                    createReq.Requests.Add(req);
-                    createIndex++;
-                }
-
-                var createResp = (ExecuteMultipleResponse)service.Execute(createReq);
-
-                if(createResp.IsFaulted){
-                    foreach (var s in createResp.Responses)
-                    {
-                        if (s.Fault != null)
-                        {
-                            logerror(s.Fault.Message);
-                        }
-                    }
-                }
-
-                if (createIndex >= createEntities.Count)
-                {
-                    moreBatches = false;
-                }
-                else
-                {
-                    moreBatches = true;
-                    createBatchNo++;
-                }
-            }
-
-            //Update Entities
-            var updateIndex = 0;
-            var updateBatchNo = 1;
-            moreBatches = true;
-            while (moreBatches)
-            {
-                var updateReq = new ExecuteMultipleRequest
-                {
-                    Requests = new OrganizationRequestCollection(),
-                    Settings = new ExecuteMultipleSettings()
-                    {
-                        ContinueOnError = true,
-                        ReturnResponses = false
-                    }
-                };
-
-                while ((updateBatchNo * batchSize) > updateIndex && updateIndex < updatedEntities.Count)
-                {
-                    var req = new UpdateRequest
-                    {
-                        Target = updatedEntities[updateIndex]
-                    };
-                    updateReq.Requests.Add(req);
-                    updateIndex++;
-                }
-
-                service.Execute(updateReq);
-
-                if (updateIndex >= updatedEntities.Count)
-                {
-                    moreBatches = false;
-                }
-                else
-                {
-                    moreBatches = true;
-                    updateBatchNo++;
-                }
+                faults.ToList().ForEach(f => logerror(f.Fault.Message));
             }
         }
 
